@@ -1,6 +1,8 @@
-from fastapi import Depends, Header
+from fastapi import Depends
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base, Session
+
+from app.core.security import get_current_user
 
 DATABASE_URLS = {
     "s1": "postgresql://admin:admin123@localhost:5433/isp_sede1",
@@ -35,9 +37,9 @@ def get_all_sessions():
     return {sid: get_session(sid) for sid in DATABASE_URLS}
 
 
-def get_db(sede_db: str = Header("s1")) -> Session:
-    """FastAPI dependency that auto-closes the session after the request."""
-    session = get_session(sede_db)
+def get_db(current_user: dict = Depends(get_current_user)) -> Session:
+    """FastAPI dependency — conecta a la BD de la sede del usuario autenticado."""
+    session = get_session(current_user["sede_id"])
     try:
         yield session
     finally:
