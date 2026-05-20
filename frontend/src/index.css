@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #001348;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #002576;
+  --color-on-primary-container: #7991e5;
+  --color-secondary: #d4e3ff;
+  --color-on-secondary: #001a41;
+  --color-secondary-container: #d9e3ff;
+  --color-on-secondary-container: #1637a6;
+  --color-tertiary: #9fcaff;
+  --color-on-tertiary: #003258;
+  --color-background: #f8f9ff;
+  --color-on-background: #191c20;
+  --color-surface: #f8f9ff;
+  --color-on-surface: #191c20;
+  --color-surface-variant: #e0e2ec;
+  --color-on-surface-variant: #44474e;
+  --color-outline: #73778e;
+  --color-outline-variant: #c4c6d0;
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #410002;
+  --color-success: #16a34a;
+  --color-warning: #f59e0b;
+
+  --font-family-sans: "Work Sans", sans-serif;
+
+  --radius-card: 1rem;
+  --radius-badge: 9999px;
+}
+
+body {
+  margin: 0;
+  background: var(--color-background);
+  font-family: "Work Sans", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.glass {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.glass-nav {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(229, 231, 235, 0.5);
+}
+
+.bento-card {
+  @apply bg-white rounded-2xl shadow-sm border border-gray-100/50;
+}
+
+.status-badge {
+  @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium;
+}
