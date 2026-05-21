@@ -10,7 +10,8 @@ function Products() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editando, setEditando] = useState(null)
-  const [form, setForm] = useState({ nombre: "", marca: "", modelo: "", referencia: "", categoria_id: "", descripcion: "", requiere_serial: false })
+  const [form, setForm] = useState({ nombre: "", marca: "", modelo: "", referencia: "", categoria_id: "", descripcion: "", requiere_serial: false, sede_ids: ["s1"], stock_inicial: 0 })
+  const esAdmin = localStorage.getItem("rol_id") === "r1"
   const navigate = useNavigate()
 
   function cargar() {
@@ -29,7 +30,8 @@ function Products() {
 
   function abrirNuevo() {
     setEditando(null)
-    setForm({ nombre: "", marca: "", modelo: "", referencia: "", categoria_id: categorias[0]?.id || "", descripcion: "", requiere_serial: false })
+    const sedeActual = localStorage.getItem("sede_id") || "s1"
+    setForm({ nombre: "", marca: "", modelo: "", referencia: "", categoria_id: categorias[0]?.id || "", descripcion: "", requiere_serial: false, sede_ids: [sedeActual], stock_inicial: 0 })
     setShowForm(true)
   }
 
@@ -43,7 +45,8 @@ function Products() {
     e.preventDefault()
     try {
       if (editando) {
-        await api.put(`/productos/${editando.id}`, form)
+        const { sede_ids, stock_inicial, ...updateData } = form
+        await api.put(`/productos/${editando.id}`, updateData)
       } else {
         await api.post("/productos/", form)
       }
@@ -196,6 +199,38 @@ function Products() {
                   className="w-4 h-4 rounded border-gray-300 text-[#002576] focus:ring-[#002576]/30" />
                 <span className="text-sm text-on-surface">Requiere serial</span>
               </label>
+
+              {!editando && (
+                <>
+                  <div>
+                    <label className="text-sm font-medium text-on-surface block mb-1.5">Agregar a sedes</label>
+                    <div className="flex gap-4">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked={form.sede_ids.includes("s1")} onChange={(e) => {
+                          const newIds = e.target.checked ? [...form.sede_ids, "s1"] : form.sede_ids.filter(s => s !== "s1")
+                          setForm({ ...form, sede_ids: newIds.length ? newIds : ["s1"] })
+                        }}
+                          className="w-4 h-4 rounded border-gray-300 text-[#002576] focus:ring-[#002576]/30" />
+                        <span className="text-sm text-on-surface">Ramiriquí</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked={form.sede_ids.includes("s2")} onChange={(e) => {
+                          const newIds = e.target.checked ? [...form.sede_ids, "s2"] : form.sede_ids.filter(s => s !== "s2")
+                          setForm({ ...form, sede_ids: newIds.length ? newIds : ["s1"] })
+                        }}
+                          className="w-4 h-4 rounded border-gray-300 text-[#002576] focus:ring-[#002576]/30" />
+                        <span className="text-sm text-on-surface">Tunja</span>
+                      </label>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-on-surface block mb-1.5">Stock inicial</label>
+                    <input type="number" min="0" value={form.stock_inicial} onChange={(e) => setForm({ ...form, stock_inicial: Number(e.target.value) })}
+                      className="w-full px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary-container/30 focus:border-primary-container/50 transition-all" />
+                  </div>
+                </>
+              )}
+
               <div className="flex items-center justify-end gap-3 pt-2">
                 <button type="button" onClick={() => setShowForm(false)}
                   className="px-5 py-2.5 rounded-xl text-sm font-medium text-on-surface-variant bg-gray-100 hover:bg-gray-200 transition-colors">

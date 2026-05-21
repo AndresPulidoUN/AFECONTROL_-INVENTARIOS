@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional, Any
+from typing import Optional, Any, List
 
 
 class ProductoBase(BaseModel):
@@ -14,7 +14,8 @@ class ProductoBase(BaseModel):
 
 
 class ProductoCreate(ProductoBase):
-    pass
+    sede_ids: Optional[List[str]] = None
+    stock_inicial: Optional[int] = 0
 
 
 class ProductoUpdate(BaseModel):

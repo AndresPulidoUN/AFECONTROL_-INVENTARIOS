@@ -2,11 +2,13 @@
 Seeder — Puebla ambas bases de datos con datos iniciales realistas.
 
 Uso:
-    python -m app.core.seed
+    python -m app.core.seed                    # Solo siembra si está vacío
+    python -m app.core.seed --force             # Resetea y siembra de nuevo
 
-Requiere los contenedores PostgreSQL corriendo (puertos 5433 y 5434).
+Requiere los contenedores PostgreSQL corriendo.
 """
 
+import sys
 import uuid
 from datetime import datetime, timedelta
 import bcrypt as _bcrypt
@@ -15,6 +17,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.database import Base
+from app.core.db import DATABASE_URLS
 from app.models import (
     Sede,
     Rol,
@@ -25,14 +28,6 @@ from app.models import (
     DetalleMovimiento,
     StockActual,
 )
-
-# ---------------------------------------------------------------------------
-# Configuración
-# ---------------------------------------------------------------------------
-DATABASES = {
-    "sede1": "postgresql://admin:admin123@localhost:5433/isp_sede1",
-    "sede2": "postgresql://admin:admin123@localhost:5434/isp_sede2",
-}
 
 PASSWORD_HASH = _bcrypt.hashpw(b"admin123", _bcrypt.gensalt()).decode()
 
@@ -230,18 +225,28 @@ HACE_7_DIAS = datetime.now() - timedelta(days=7)
 HACE_3_DIAS = datetime.now() - timedelta(days=3)
 
 
+FORCE = "--force" in sys.argv
+
+
 def seed_database(db_url, sede_id, usuarios, stock):
     """Conecta a una base de datos, crea tablas y siembra datos."""
     engine = create_engine(db_url, pool_pre_ping=True)
 
-    # Recrea tablas limpias (seguro en desarrollo)
-    Base.metadata.drop_all(bind=engine)
-    Base.metadata.create_all(bind=engine)
+    if FORCE:
+        Base.metadata.drop_all(bind=engine)
+        Base.metadata.create_all(bind=engine)
+    else:
+        Base.metadata.create_all(bind=engine)
 
     Session = sessionmaker(bind=engine)
     session = Session()
 
     try:
+        # Saltar si ya hay datos (a menos que se use --force)
+        if not FORCE and session.query(Rol).count() > 0:
+            print(f"  ⏭ Ya hay datos en {sede_id}, saltando seed (usa --force para resetear)")
+            return
+
         # 1. Roles  (comunes)
         for data in ROLES:
             session.add(Rol(**data))
@@ -348,8 +353,8 @@ def seed_database(db_url, sede_id, usuarios, stock):
 # ---------------------------------------------------------------------------
 def run():
     configs = [
-        ("sede1", DATABASES["sede1"], "s1", USUARIOS_SEDE1, STOCK_SEDE1),
-        ("sede2", DATABASES["sede2"], "s2", USUARIOS_SEDE2, STOCK_SEDE2),
+        ("s1", DATABASE_URLS["s1"], "s1", USUARIOS_SEDE1, STOCK_SEDE1),
+        ("s2", DATABASE_URLS["s2"], "s2", USUARIOS_SEDE2, STOCK_SEDE2),
     ]
     for name, url, sede_id, usuarios, stock in configs:
         print(f"\nPoblando {name} ({url})...")

@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
 
-from app.core.db import get_db, get_session, DATABASE_URLS
+from app.core.db import get_db, get_session, get_sede_actual, DATABASE_URLS
 from app.core.security import get_current_user
 from app.models.movimiento_inventario import MovimientoInventario
 from app.models.detalle_movimiento import DetalleMovimiento
@@ -82,6 +82,7 @@ def crear_movimiento(
     data: MovimientoCreate,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user),
+    sede_actual: str = Depends(get_sede_actual),
 ):
     if data.tipo_movimiento not in ("entrada", "salida", "transferencia"):
         raise HTTPException(400, "Tipo de movimiento inválido. Use: entrada, salida, transferencia")
@@ -89,7 +90,7 @@ def crear_movimiento(
     mov = MovimientoInventario(
         id=str(uuid.uuid4()),
         usuario_id=current_user["id"],
-        sede_origen_id=current_user["sede_id"],
+        sede_origen_id=sede_actual,
         sede_destino_id=data.sede_destino_id,
         tipo_movimiento=data.tipo_movimiento,
         observacion=data.observacion,
@@ -109,11 +110,11 @@ def crear_movimiento(
         ))
 
         if data.tipo_movimiento == "entrada":
-            _ajustar_stock(db, current_user["sede_id"], det.producto_id, det.cantidad)
+            _ajustar_stock(db, sede_actual, det.producto_id, det.cantidad)
         elif data.tipo_movimiento == "salida":
-            _ajustar_stock(db, current_user["sede_id"], det.producto_id, -det.cantidad)
+            _ajustar_stock(db, sede_actual, det.producto_id, -det.cantidad)
         elif data.tipo_movimiento == "transferencia":
-            _ajustar_stock(db, current_user["sede_id"], det.producto_id, -det.cantidad)
+            _ajustar_stock(db, sede_actual, det.producto_id, -det.cantidad)
             if data.sede_destino_id and data.sede_destino_id in DATABASE_URLS:
                 db_dest = get_session(data.sede_destino_id)
                 try:

@@ -3,7 +3,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from app.core.db import get_db
+from app.core.db import get_db, get_sede_actual
 from app.core.security import get_current_user
 from app.models.stock_actual import StockActual
 from app.models.producto import Producto
@@ -20,9 +20,9 @@ def listar_stock(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
-    q = db.query(StockActual).filter(
-        StockActual.sede_id == current_user["sede_id"],
-    )
+    q = db.query(StockActual)
+    if current_user["rol_id"] != "r1":
+        q = q.filter(StockActual.sede_id == current_user["sede_id"])
     if producto_id:
         q = q.filter(StockActual.producto_id == producto_id)
     return q.all()
@@ -34,13 +34,28 @@ def actualizar_stock(
     data: StockUpdate,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user),
+    sede_actual: str = Depends(get_sede_actual),
 ):
-    stock = db.query(StockActual).filter(
-        StockActual.sede_id == current_user["sede_id"],
+    q = db.query(StockActual).filter(
         StockActual.producto_id == producto_id,
-    ).first()
+    )
+    if current_user["rol_id"] != "r1":
+        q = q.filter(StockActual.sede_id == current_user["sede_id"])
+    stock = q.first()
+
     if not stock:
-        raise HTTPException(404, "Producto no encontrado en stock")
+        target_sede = current_user["sede_id"] if current_user["rol_id"] != "r1" else sede_actual
+        stock = StockActual(
+            id=str(uuid.uuid4()),
+            sede_id=target_sede,
+            producto_id=producto_id,
+            cantidad=0,
+        )
+        db.add(stock)
+        db.flush()
+        creando = True
+    else:
+        creando = False
 
     diferencia = data.cantidad - stock.cantidad
 
@@ -51,23 +66,27 @@ def actualizar_stock(
         prod = db.query(Producto).filter(Producto.id == producto_id).first()
         prod_nombre = f"{prod.nombre} ({prod.marca})" if prod else producto_id
 
+        observacion = f"Stock inicial: {data.cantidad} {prod_nombre}" if creando else f"Ajuste manual: {signo}{diferencia} {prod_nombre}"
+
         mov = MovimientoInventario(
             id=str(uuid.uuid4()),
             usuario_id=current_user["id"],
-            sede_origen_id=current_user["sede_id"],
+            sede_origen_id=stock.sede_id,
             tipo_movimiento=tipo,
-            observacion=f"Ajuste manual: {signo}{diferencia} {prod_nombre}",
+            observacion=observacion,
             fecha=datetime.now(),
         )
         db.add(mov)
         db.flush()
+
+        obs_detalle = f"Stock inicial: 0 → {data.cantidad}" if creando else f"Stock anterior: {stock.cantidad - diferencia}, nuevo: {data.cantidad}"
 
         db.add(DetalleMovimiento(
             id=str(uuid.uuid4()),
             movimiento_id=mov.id,
             producto_id=producto_id,
             cantidad=abs(diferencia),
-            observacion=f"Stock anterior: {stock.cantidad}, nuevo: {data.cantidad}",
+            observacion=obs_detalle,
         ))
 
     stock.cantidad = data.cantidad

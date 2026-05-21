@@ -12,7 +12,7 @@ class MovimientoInventario(Base):
         default=lambda: str(uuid.uuid4())
     )
 
-    usuario_id = Column(String, ForeignKey("usuarios.id"), nullable=False)
+    usuario_id = Column(String, nullable=False)
 
     sede_origen_id = Column(String, ForeignKey("sedes.id"), nullable=False)
 

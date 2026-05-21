@@ -1,0 +1,220 @@
+=======================================================================
+                  AFECONTROL - SISTEMA DE GESTION DE INVENTARIOS
+                         MANUAL DE USUARIO v1.0
+=======================================================================
+
+1. REQUISITOS DEL SISTEMA
+=======================================================================
+
+   Para ejecutar AFECONTROL necesitas:
+
+   - Docker Desktop (Windows) con integracion WSL 2
+     o Docker Engine en Linux
+   - Python 3.12+
+   - Node.js 20+
+
+   En WSL Debian:
+     sudo apt update
+     sudo apt install -y python3 python3-venv python3-pip nodejs npm
+
+
+2. METODOS DE INSTALACION
+=======================================================================
+
+   Hay DOS formas de ejecutar el proyecto:
+
+
+   A) INSTALACION RAPIDA (recomendada para desarrollo)
+   -------------------------------------------------------------------
+
+   1. Clona o copia el repositorio:
+        cd ~/proyectos
+        git clone <url-del-repositorio> AFECONTROL_-INVENTARIOS
+        cd AFECONTROL_-INVENTARIOS
+
+   2. Ejecuta el script de configuracion:
+        bash setup.sh
+
+      Este script hara todo automaticamente:
+      - Verifica Docker, Python y Node.js
+      - Levanta los contenedores PostgreSQL
+      - Crea el entorno virtual de Python e instala dependencias
+      - Siembra datos de prueba
+      - Instala dependencias del frontend
+
+   3. Inicia el proyecto (dos terminales):
+
+      Terminal 1 - Backend:
+        cd backend
+        source venv/bin/activate
+        uvicorn app.main:app --reload --port 8000
+
+      Terminal 2 - Frontend:
+        cd frontend
+        npm run dev
+
+   4. Abre en tu navegador: http://localhost:5173
+
+
+   B) INSTALACION CON DOCKER (produccion)
+   -------------------------------------------------------------------
+
+   1. Un solo comando levanta todo:
+        docker compose up --build
+
+      Esto inicia:
+      - PostgreSQL Sede 1 (Ramiriqui) en puerto 5433
+      - PostgreSQL Sede 2 (Tunja) en puerto 5434
+      - Backend FastAPI en puerto 8000
+      - Frontend React + Nginx en puerto 5173
+
+   2. Abre en tu navegador: http://localhost:5173
+
+   Para detener:
+        docker compose down
+
+   Para detener y borrar datos:
+        docker compose down -v
+
+
+3. CREDENCIALES POR DEFECTO
+=======================================================================
+
+   Administrador (accede a todo):
+     Correo: carlos@isp.com
+     Clave:  admin123
+
+   Usuario (solo su sede):
+     Correo: maria@isp.com
+     Clave:  admin123
+
+   Sede 2:
+     Correo: pedro@isp.com
+     Clave:  admin123
+
+     Correo: ana@isp.com
+     Clave:  admin123
+
+
+4. ARQUITECTURA DEL SISTEMA
+=======================================================================
+
+   AFECONTROL usa una arquitectura multi-sede con bases de datos
+   independientes:
+
+   ┌─────────────┐     ┌──────────────┐     ┌──────────────┐
+   │  Frontend   │────>│   Backend    │────>│ PostgreSQL   │
+   │  React/Vite │     │  FastAPI     │     │ Sede 1 (s1)  │
+   │  :5173      │     │  :8000       │     │ :5433        │
+   └─────────────┘     │              │────>│ PostgreSQL   │
+                       │              │     │ Sede 2 (s2)  │
+                       └──────────────┘     │ :5434        │
+                                            └──────────────┘
+
+   Cada sede tiene su propia base de datos independiente.
+   El backend enruta las peticiones a la base de datos correcta
+   segun el usuario autenticado.
+
+
+5. MODULOS DEL SISTEMA
+=======================================================================
+
+   5.1. AUTENTICACION
+   - Login con correo y contrasena
+   - Tokens JWT con vigencia de 8 horas
+   - Dos roles: admin (r1) y usuario (r2)
+
+   5.2. DASHBOARD
+   - Vista general del inventario
+   - Graficos por categoria
+   - Alertas de stock bajo (< 5 unidades)
+   - Alertas de stock critico (< 3 unidades)
+   - Recomendaciones de transferencia entre sedes
+
+   5.3. PRODUCTOS
+   - Catalogo de productos (compartido entre sedes)
+   - Campos: nombre, marca, modelo, referencia, categoria
+   - Soporte para seriales (equipos como ONT, routers)
+   - Metadatos adicionales en formato JSON
+   - Al crear un producto, se puede elegir en que sedes agregarlo
+     y definir el stock inicial
+
+   5.4. INVENTARIO / STOCK
+   - Visualizacion del stock actual por sede y producto
+   - Ajuste manual de cantidades
+   - Cada ajuste genera un movimiento de inventario automatico
+
+   5.5. MOVIMIENTOS
+   - Registro de entradas, salidas y transferencias
+   - Las transferencias descuentan stock de la sede origen
+     y agregan a la sede destino
+   - Historial completo con detalles por producto
+
+   5.6. USUARIOS
+   - CRUD completo de usuarios
+   - Asignacion de rol (admin/usuario) y sede
+   - Los usuarios normales solo ven su propia sede
+
+
+6. SOLUCION DE PROBLEMAS
+=======================================================================
+
+   PROBLEMA: "docker: command not found"
+   SOLUCION: Instala Docker Desktop en Windows y activa la
+             integracion WSL 2 en Settings > Resources > WSL Integration
+
+   PROBLEMA: "Cannot connect to the Docker daemon"
+   SOLUCION: Abre Docker Desktop en Windows y espera a que inicie
+
+   PROBLEMA: "Port 5433 already in use"
+   SOLUCION: Deten cualquier otro PostgreSQL:
+             sudo service postgresql stop
+             O cambia los puertos en docker-compose.yml
+
+   PROBLEMA: "Seed falla - conexion rechazada"
+   SOLUCION: Espera unos segundos y vuelve a ejecutar:
+             cd backend && source venv/bin/activate
+             python -m app.core.seed
+
+   PROBLEMA: "ModuleNotFoundError: No module named 'app'"
+   SOLUCION: Asegurate de ejecutar los comandos desde la carpeta
+             correcta: cd ~/proyectos/.../AFECONTROL_-INVENTARIOS/backend
+
+   PROBLEMA: "Error de CORS"
+   SOLUCION: Si el frontend corre en un puerto diferente, agrega
+             el origen en backend/app/main.py linea 19
+
+   PROBLEMA: Quiero resetear los datos
+   SOLUCION: cd backend && source venv/bin/activate
+             python -m app.core.seed --force
+
+
+7. COMANDOS UTILES
+=======================================================================
+
+   Ver logs del backend:
+     cd backend && source venv/bin/activate
+     uvicorn app.main:app --reload --port 8000
+
+   Ver logs de Docker:
+     docker compose logs -f
+
+   Ver bases de datos:
+     docker exec -it postgres_sede1 psql -U admin -d isp_sede1
+     docker exec -it postgres_sede2 psql -U admin -d isp_sede2
+
+   Detener todo:
+     docker compose down
+
+   Reconstruir containers:
+     docker compose up --build
+
+
+8. CONTACTO Y SOPORTE
+=======================================================================
+
+   Proyecto: AFECONTROL - Sistema de Gestion de Inventarios ISP
+   Desarrollado para: Bases de Datos Distribuidas
+   Tecnologias: FastAPI, React, PostgreSQL, Docker
+
+=======================================================================

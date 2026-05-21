@@ -3,10 +3,16 @@ from sqlalchemy.orm import Session
 from typing import List
 
 from app.core.db import get_db
+from app.core.security import get_current_user
 from app.models.categoria import Categoria
 from app.schemas.categoria import CategoriaCreate, CategoriaUpdate, CategoriaResponse
 
 router = APIRouter(prefix="/categorias", tags=["Categorías"])
+
+
+def _es_admin(current_user: dict):
+    if current_user.get("rol_id") != "r1":
+        raise HTTPException(403, "Solo administradores")
 
 
 @router.get("/", response_model=List[CategoriaResponse])
@@ -23,7 +29,12 @@ def obtener_categoria(categoria_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=CategoriaResponse, status_code=201)
-def crear_categoria(data: CategoriaCreate, db: Session = Depends(get_db)):
+def crear_categoria(
+    data: CategoriaCreate,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    _es_admin(current_user)
     existe = db.query(Categoria).filter(Categoria.nombre == data.nombre).first()
     if existe:
         raise HTTPException(400, "Ya existe una categoría con ese nombre")
@@ -35,7 +46,13 @@ def crear_categoria(data: CategoriaCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/{categoria_id}", response_model=CategoriaResponse)
-def actualizar_categoria(categoria_id: str, data: CategoriaUpdate, db: Session = Depends(get_db)):
+def actualizar_categoria(
+    categoria_id: str,
+    data: CategoriaUpdate,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    _es_admin(current_user)
     cat = db.query(Categoria).filter(Categoria.id == categoria_id).first()
     if not cat:
         raise HTTPException(404, "Categoría no encontrada")
@@ -47,7 +64,12 @@ def actualizar_categoria(categoria_id: str, data: CategoriaUpdate, db: Session =
 
 
 @router.delete("/{categoria_id}", status_code=204)
-def eliminar_categoria(categoria_id: str, db: Session = Depends(get_db)):
+def eliminar_categoria(
+    categoria_id: str,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    _es_admin(current_user)
     cat = db.query(Categoria).filter(Categoria.id == categoria_id).first()
     if not cat:
         raise HTTPException(404, "Categoría no encontrada")

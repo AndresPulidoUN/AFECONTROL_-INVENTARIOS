@@ -1,36 +1,73 @@
 services:
 
+  # ─── PostgreSQL ──────────────────────────────────────────
   postgres_sede1:
     image: postgres:16
     container_name: postgres_sede1
-    restart: always
-
+    restart: unless-stopped
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin123
       POSTGRES_DB: isp_sede1
-
     ports:
       - "5433:5432"
-
     volumes:
       - postgres_sede1_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d isp_sede1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   postgres_sede2:
     image: postgres:16
     container_name: postgres_sede2
-    restart: always
-
+    restart: unless-stopped
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin123
       POSTGRES_DB: isp_sede2
-
     ports:
       - "5434:5432"
-
     volumes:
       - postgres_sede2_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d isp_sede2"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ─── Backend (FastAPI) ───────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: isp_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL_S1: "postgresql://admin:admin123@postgres_sede1:5432/isp_sede1"
+      DATABASE_URL_S2: "postgresql://admin:admin123@postgres_sede2:5432/isp_sede2"
+    depends_on:
+      postgres_sede1:
+        condition: service_healthy
+      postgres_sede2:
+        condition: service_healthy
+
+  # ─── Frontend (React + Nginx) ────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: isp_frontend
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
 
 volumes:
   postgres_sede1_data:
