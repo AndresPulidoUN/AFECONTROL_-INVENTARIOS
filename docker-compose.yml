@@ -43,7 +43,7 @@ services:
   backend:
     build:
       context: .
-      dockerfile: Dockerfile.backend
+      dockerfile: backend/Dockerfile
     container_name: isp_backend
     restart: unless-stopped
     ports:
@@ -61,7 +61,7 @@ services:
   frontend:
     build:
       context: .
-      dockerfile: Dockerfile.frontend
+      dockerfile: frontend/Dockerfile
     container_name: isp_frontend
     restart: unless-stopped
     ports:

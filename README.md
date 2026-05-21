@@ -1,104 +1,62 @@
 # AFECONTROL - Sistema de Gestión de Inventarios ISP
 
-Sistema web para gestión de inventarios de equipos de telecomunicaciones, con soporte para múltiples sedes (Ramiriquí y Tunja).
+Sistema web para gestión de inventarios de equipos de telecomunicaciones con soporte para múltiples sedes (Ramiriquí y Tunja).
 
-## Requisitos
+## Inicio rápido (recomendado)
 
-- Docker y Docker Compose
-- Python 3.10+
-- Node.js 18+
-
-## Inicio rápido (3 comandos)
+Solo necesitas **Docker**:
 
 ```bash
-# 1. Clonar e instalar todo automáticamente
-./setup.sh
-
-# 2. En otra terminal, iniciar backend
-cd backend && source venv/bin/activate && uvicorn app.main:app --reload --port 8000
-
-# 3. En otra terminal, iniciar frontend
-cd frontend && npm run dev
+git clone <url-del-repositorio>
+cd AFECONTROL_-INVENTARIOS
+docker compose up --build
 ```
 
 Abrir en el navegador: **http://localhost:5173**
 
-## Instalación manual paso a paso
+Esto inicia automáticamente:
+- PostgreSQL ×2 (una base por sede)
+- Backend FastAPI (con seed de datos incluido)
+- Frontend React sirviendo con Nginx
 
-### 1. Bases de datos
-
-```bash
-docker compose up -d
-```
-
-Crea dos bases PostgreSQL:
-- `isp_sede1` → puerto `5433`
-- `isp_sede2` → puerto `5434`
-
-### 2. Backend
+## Inicio local (desarrollo)
 
 ```bash
-cd backend
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-python -m app.core.seed    # carga datos de prueba
-uvicorn app.main:app --reload --port 8000
+# 1. Clonar
+git clone <url-del-repositorio>
+cd AFECONTROL_-INVENTARIOS
+
+# 2. Ejecutar setup automático
+bash setup.sh
+
+# 3. Iniciar (dos terminales)
+cd backend && source venv/bin/activate && uvicorn app.main:app --reload --port 8000
+cd frontend && npm run dev
 ```
 
-### 3. Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
+Abrir: **http://localhost:5173**
 
 ## Credenciales de prueba
 
-| Rol   | Correo            | Contraseña |
-|-------|-------------------|------------|
-| Admin | carlos@isp.com    | admin123   |
-| Admin | pedro@isp.com     | admin123   |
-| Usuario | maria@isp.com   | admin123   |
-| Usuario | ana@isp.com    | admin123   |
+| Rol     | Correo            | Contraseña |
+|---------|-------------------|------------|
+| Admin   | carlos@isp.com    | admin123   |
+| Admin   | pedro@isp.com     | admin123   |
+| Usuario | maria@isp.com     | admin123   |
+| Usuario | ana@isp.com       | admin123   |
 
-## Estructura del proyecto
+## Arquitectura
 
 ```
-AFECONTROL_-INVENTARIOS/
-├── backend/
-│   ├── app/
-│   │   ├── core/          # Config DB, seguridad, seed
-│   │   ├── models/        # Modelos SQLAlchemy
-│   │   ├── routers/       # Endpoints FastAPI
-│   │   ├── schemas/       # Schemas Pydantic
-│   │   └── main.py        # Entry point
-│   └── requirements.txt
-├── frontend/
-│   ├── src/
-│   │   ├── components/    # Componentes reutilizables
-│   │   ├── layouts/       # Layouts
-│   │   ├── pages/         # Páginas/vistas
-│   │   ├── routes/        # Configuración de rutas
-│   │   └── services/      # API client (axios)
-│   └── package.json
-├── docker-compose.yml     # PostgreSQL multi-sede
-├── setup.sh               # Script de instalación automática
-└── README.md
+Cliente Web ──► Nginx (:5173) ──► Backend (:8000) ──► PostgreSQL Sede 1 (:5432)
+                  │                                       PostgreSQL Sede 2 (:5432)
+                  └── Sirve React (build)
 ```
 
-## Funcionalidades
-
-- Autenticación JWT con roles (admin / usuario)
-- Gestión de productos, categorías y sedes
-- Control de inventario con entradas y salidas
-- Stock por sede con actualización en tiempo real
-- Dashboard con indicadores y alertas
-- Movimientos entre sedes (transferencias)
+Cada sede tiene su propia base de datos independiente. El backend enruta según el usuario autenticado.
 
 ## Tecnologías
 
-- **Backend:** FastAPI, SQLAlchemy, PostgreSQL, JWT, bcrypt
-- **Frontend:** React 19, React Router 7, Vite 8, TailwindCSS 4, Recharts, Axios
-- **Infra:** Docker, Docker Compose
+- **Backend:** FastAPI, SQLAlchemy, PostgreSQL, JWT
+- **Frontend:** React 19, Vite, TailwindCSS 4, Recharts
+- **Infra:** Docker, Docker Compose, Nginx
