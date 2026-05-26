@@ -32,6 +32,7 @@ def listar_stock(
 def actualizar_stock(
     producto_id: str,
     data: StockUpdate,
+    sede_id: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user),
     sede_actual: str = Depends(get_sede_actual),
@@ -39,7 +40,9 @@ def actualizar_stock(
     q = db.query(StockActual).filter(
         StockActual.producto_id == producto_id,
     )
-    if current_user["rol_id"] != "r1":
+    if current_user["rol_id"] == "r1" and sede_id:
+        q = q.filter(StockActual.sede_id == sede_id)
+    elif current_user["rol_id"] != "r1":
         q = q.filter(StockActual.sede_id == current_user["sede_id"])
     stock = q.first()
 

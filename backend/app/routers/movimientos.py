@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
 
-from app.core.db import get_db, get_session, get_sede_actual, DATABASE_URLS
+from app.core.db import get_db, get_sede_actual
 from app.core.security import get_current_user
 from app.models.movimiento_inventario import MovimientoInventario
 from app.models.detalle_movimiento import DetalleMovimiento
@@ -115,13 +115,8 @@ def crear_movimiento(
             _ajustar_stock(db, sede_actual, det.producto_id, -det.cantidad)
         elif data.tipo_movimiento == "transferencia":
             _ajustar_stock(db, sede_actual, det.producto_id, -det.cantidad)
-            if data.sede_destino_id and data.sede_destino_id in DATABASE_URLS:
-                db_dest = get_session(data.sede_destino_id)
-                try:
-                    _ajustar_stock(db_dest, data.sede_destino_id, det.producto_id, det.cantidad)
-                    db_dest.commit()
-                finally:
-                    db_dest.close()
+            if data.sede_destino_id:
+                _ajustar_stock(db, data.sede_destino_id, det.producto_id, det.cantidad)
 
     db.commit()
     db.refresh(mov)

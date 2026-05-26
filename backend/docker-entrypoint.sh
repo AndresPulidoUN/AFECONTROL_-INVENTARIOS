@@ -28,12 +28,31 @@ except Exception:
     exit 1
 }
 
-wait_for_postgres "$DATABASE_URL_S1" "Sede 1 (Ramiriquí)"
-wait_for_postgres "$DATABASE_URL_S2" "Sede 2 (Tunja)"
+wait_for_postgres "$DATABASE_URL" "PostgreSQL (vía pgpool)"
 
 echo ""
-echo "Sembrando datos iniciales..."
-python -m app.core.seed
+echo "Verificando si ya hay datos..."
+if python -c "
+import psycopg2, os
+url = os.environ.get('DATABASE_URL', '')
+try:
+    conn = psycopg2.connect(url)
+    cur = conn.cursor()
+    cur.execute('SELECT COUNT(*) FROM sedes')
+    count = cur.fetchone()[0]
+    conn.close()
+    if count > 0:
+        exit(0)
+    else:
+        exit(1)
+except Exception:
+    exit(1)
+" 2>/dev/null; then
+    echo "  Datos existentes, saltando seed."
+else
+    echo "Sembrando datos iniciales..."
+    python -m app.core.seed
+fi
 
 echo ""
 echo "Iniciando servidor FastAPI..."

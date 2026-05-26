@@ -26,7 +26,7 @@
   --color-success: #16a34a;
   --color-warning: #f59e0b;
 
-  --font-family-sans: "Work Sans", sans-serif;
+  --font-family-sans: "Work Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji";
 
   --radius-card: 1rem;
   --radius-badge: 9999px;
@@ -35,7 +35,7 @@
 body {
   margin: 0;
   background: var(--color-background);
-  font-family: "Work Sans", sans-serif;
+  font-family: "Work Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji";
   -webkit-font-smoothing: antialiased;
 }
 

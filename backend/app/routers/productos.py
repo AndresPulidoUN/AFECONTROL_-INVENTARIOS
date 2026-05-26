@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
-from app.core.db import get_db, get_sede_actual, get_session, DATABASE_URLS
+from app.core.db import get_db, get_sede_actual
 from app.core.security import get_current_user
 from app.models.producto import Producto
 from app.models.stock_actual import StockActual
@@ -42,6 +42,7 @@ def obtener_producto(
 @router.post("/", status_code=201)
 def crear_producto(
     data: ProductoCreate,
+    db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user),
     sede_actual: str = Depends(get_sede_actual),
 ):
@@ -50,66 +51,53 @@ def crear_producto(
 
     target_sedes = data.sede_ids or [sede_actual]
     prod_id = str(uuid.uuid4())
-    resultados = []
+
+    prod = Producto(
+        id=prod_id,
+        categoria_id=data.categoria_id,
+        nombre=data.nombre,
+        marca=data.marca,
+        modelo=data.modelo,
+        referencia=data.referencia,
+        requiere_serial=data.requiere_serial,
+        descripcion=data.descripcion,
+        metadata_json=data.metadata_json,
+    )
+    db.add(prod)
+    db.flush()
 
     for sid in target_sedes:
-        if sid not in DATABASE_URLS:
-            continue
-        db = get_session(sid)
-        try:
-            prod = Producto(
-                id=prod_id,
-                categoria_id=data.categoria_id,
-                nombre=data.nombre,
-                marca=data.marca,
-                modelo=data.modelo,
-                referencia=data.referencia,
-                requiere_serial=data.requiere_serial,
-                descripcion=data.descripcion,
-                metadata_json=data.metadata_json,
-            )
-            db.add(prod)
-            db.flush()
+        stock = StockActual(
+            id=str(uuid.uuid4()),
+            sede_id=sid,
+            producto_id=prod_id,
+            cantidad=data.stock_inicial or 0,
+        )
+        db.add(stock)
 
-            stock = StockActual(
+        if data.stock_inicial and data.stock_inicial > 0:
+            mov = MovimientoInventario(
                 id=str(uuid.uuid4()),
-                sede_id=sid,
-                producto_id=prod_id,
-                cantidad=data.stock_inicial or 0,
+                usuario_id=current_user["id"],
+                sede_origen_id=sid,
+                tipo_movimiento="entrada",
+                observacion=f"Creación de producto con stock inicial: {data.stock_inicial} {data.nombre} ({data.marca})",
+                fecha=datetime.now(),
             )
-            db.add(stock)
+            db.add(mov)
             db.flush()
+            db.add(DetalleMovimiento(
+                id=str(uuid.uuid4()),
+                movimiento_id=mov.id,
+                producto_id=prod_id,
+                cantidad=data.stock_inicial,
+            ))
 
-            if data.stock_inicial and data.stock_inicial > 0:
-                mov = MovimientoInventario(
-                    id=str(uuid.uuid4()),
-                    usuario_id=current_user["id"],
-                    sede_origen_id=sid,
-                    tipo_movimiento="entrada",
-                    observacion=f"Creación de producto con stock inicial: {data.stock_inicial} {data.nombre} ({data.marca})",
-                    fecha=datetime.now(),
-                )
-                db.add(mov)
-                db.flush()
-                db.add(DetalleMovimiento(
-                    id=str(uuid.uuid4()),
-                    movimiento_id=mov.id,
-                    producto_id=prod_id,
-                    cantidad=data.stock_inicial,
-                ))
-
-            db.commit()
-            resultados.append(sid)
-        except Exception as e:
-            db.rollback()
-            raise HTTPException(500, f"Error en sede {sid}: {e}")
-        finally:
-            db.close()
-
+    db.commit()
     return {
         "id": prod_id,
-        "mensaje": f"Producto creado en {len(resultados)} sede(s): {', '.join(resultados)}",
-        "sedes": resultados,
+        "mensaje": f"Producto creado en {len(target_sedes)} sede(s): {', '.join(target_sedes)}",
+        "sedes": target_sedes,
     }
 
 

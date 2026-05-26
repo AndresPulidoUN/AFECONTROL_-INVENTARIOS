@@ -1,62 +1,51 @@
-# AFECONTROL - Sistema de Gestión de Inventarios ISP
+# AFECONTROL — Sistema de Gestión de Inventarios ISP
 
-Sistema web para gestión de inventarios de equipos de telecomunicaciones con soporte para múltiples sedes (Ramiriquí y Tunja).
+Plataforma web para gestión centralizada de inventarios de equipos de telecomunicaciones con soporte multi-sede y alta disponibilidad.
 
-## Inicio rápido (recomendado)
-
-Solo necesitas **Docker**:
+## Inicio rápido
 
 ```bash
-git clone <url-del-repositorio>
-cd AFECONTROL_-INVENTARIOS
 docker compose up --build
 ```
 
-Abrir en el navegador: **http://localhost:5173**
+Abrir [http://localhost:5173](http://localhost:5173)
 
-Esto inicia automáticamente:
-- PostgreSQL ×2 (una base por sede)
-- Backend FastAPI (con seed de datos incluido)
-- Frontend React sirviendo con Nginx
+## Credenciales
 
-## Inicio local (desarrollo)
-
-```bash
-# 1. Clonar
-git clone <url-del-repositorio>
-cd AFECONTROL_-INVENTARIOS
-
-# 2. Ejecutar setup automático
-bash setup.sh
-
-# 3. Iniciar (dos terminales)
-cd backend && source venv/bin/activate && uvicorn app.main:app --reload --port 8000
-cd frontend && npm run dev
-```
-
-Abrir: **http://localhost:5173**
-
-## Credenciales de prueba
-
-| Rol     | Correo            | Contraseña |
-|---------|-------------------|------------|
-| Admin   | carlos@isp.com    | admin123   |
-| Admin   | pedro@isp.com     | admin123   |
-| Usuario | maria@isp.com     | admin123   |
-| Usuario | ana@isp.com       | admin123   |
+| Rol | Correo | Contraseña |
+|-----|--------|-----------|
+| Admin | carlos@isp.com | admin123 |
+| Admin | ana@isp.com | admin123 |
+| Técnico | maria@isp.com | admin123 |
+| Técnico | pedro@isp.com | admin123 |
 
 ## Arquitectura
 
 ```
-Cliente Web ──► Nginx (:5173) ──► Backend (:8000) ──► PostgreSQL Sede 1 (:5432)
-                  │                                       PostgreSQL Sede 2 (:5432)
-                  └── Sirve React (build)
+Navegador ──► Frontend (React + Nginx) :5173
+                  │
+                  └─► /api/* ──► Backend (FastAPI) :8000
+                                     │
+                                     └─► pgpool-II :5432
+                                           ├── PostgreSQL Primary (escribe/lee)
+                                           └── PostgreSQL Replica (failover automático)
 ```
 
-Cada sede tiene su propia base de datos independiente. El backend enruta según el usuario autenticado.
+Cada operación de inventario se registra con `sede_id`, permitiendo consultas globales (admin) o filtradas por sede (técnico). El clúster PostgreSQL con pgpool-II garantiza failover automático sin intervención.
 
 ## Tecnologías
 
-- **Backend:** FastAPI, SQLAlchemy, PostgreSQL, JWT
+- **Backend:** Python 3.13, FastAPI, SQLAlchemy, PostgreSQL 16, JWT
 - **Frontend:** React 19, Vite, TailwindCSS 4, Recharts
-- **Infra:** Docker, Docker Compose, Nginx
+- **Infra:** Docker, Docker Compose, pgpool-II, Nginx
+
+## Comandos útiles
+
+```bash
+docker compose up --build          # Iniciar todo
+docker compose down                # Detener
+docker compose down -v             # Detener y borrar datos
+docker compose logs -f             # Ver logs
+docker compose build backend       # Reconstruir solo backend
+docker compose build frontend      # Reconstruir solo frontend
+```

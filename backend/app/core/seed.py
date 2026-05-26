@@ -1,15 +1,14 @@
 """
-Seeder — Puebla ambas bases de datos con datos iniciales realistas.
+Seeder — Puebla la base de datos única con datos iniciales realistas.
 
 Uso:
     python -m app.core.seed                    # Solo siembra si está vacío
     python -m app.core.seed --force             # Resetea y siembra de nuevo
 
-Requiere los contenedores PostgreSQL corriendo.
+Requiere el clúster PostgreSQL corriendo.
 """
 
 import sys
-import uuid
 from datetime import datetime, timedelta
 import bcrypt as _bcrypt
 
@@ -17,7 +16,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.database import Base
-from app.core.db import DATABASE_URLS
+from app.core.db import DATABASE_URL
 from app.models import (
     Sede,
     Rol,
@@ -31,9 +30,8 @@ from app.models import (
 
 PASSWORD_HASH = _bcrypt.hashpw(b"admin123", _bcrypt.gensalt()).decode()
 
-# ---------------------------------------------------------------------------
-# Datos comunes  (se siembran idénticos en ambas sedes)
-# ---------------------------------------------------------------------------
+# ─── Datos comunes ──────────────────────────────────────────
+
 ROLES = [
     {"id": "r1", "nombre": "admin"},
     {"id": "r2", "nombre": "usuario"},
@@ -51,316 +49,165 @@ CATEGORIAS = [
 ]
 
 PRODUCTOS = [
-    # ONTs
-    {"id": "p1",  "categoria_id": "c1", "nombre": "ONT Huawei HG8010H",
-     "marca": "Huawei", "modelo": "HG8010H", "referencia": "HG8010H-V2",
-     "requiere_serial": True,  "descripcion": "ONT GPON 1 puerto Ethernet Gigabit",
-     "metadata_json": {"puertos": 1, "tipo": "GPON", "wifi": False}},
-    {"id": "p2",  "categoria_id": "c1", "nombre": "ONT Nokia G-010G-P",
-     "marca": "Nokia", "modelo": "G-010G-P", "referencia": "3FE48243AD",
-     "requiere_serial": True,  "descripcion": "ONT GPON con WiFi integrado",
-     "metadata_json": {"puertos": 4, "tipo": "GPON", "wifi": True}},
-    {"id": "p3",  "categoria_id": "c1", "nombre": "ONT FiberHome AN5506-04",
-     "marca": "FiberHome", "modelo": "AN5506-04", "referencia": None,
-     "requiere_serial": True,  "descripcion": "ONT GPON 4 puertos GE",
-     "metadata_json": {"puertos": 4, "tipo": "GPON", "wifi": False}},
-
-    # Routers
-    {"id": "p4",  "categoria_id": "c2", "nombre": "Router MikroTik hAP lite",
-     "marca": "MikroTik", "modelo": "RB941-2nD", "referencia": "RB941-2nD",
-     "requiere_serial": True,  "descripcion": "Router WiFi 2.4 GHz 5 puertos",
-     "metadata_json": {"frecuencia": "2.4GHz", "puertos": 5, "wifi": True}},
-    {"id": "p5",  "categoria_id": "c2", "nombre": "Router TP-Link WR840N",
-     "marca": "TP-Link", "modelo": "TL-WR840N", "referencia": "TL-WR840N V6",
-     "requiere_serial": True,  "descripcion": "Router WiFi 300 Mbps 4 puertos LAN",
-     "metadata_json": {"frecuencia": "2.4GHz", "puertos": 4, "wifi": True}},
-    {"id": "p6",  "categoria_id": "c2", "nombre": "Router Linksys E1200",
-     "marca": "Linksys", "modelo": "E1200", "referencia": None,
-     "requiere_serial": True,  "descripcion": "Router WiFi N 2.4 GHz 4 puertos",
-     "metadata_json": {"frecuencia": "2.4GHz", "puertos": 4, "wifi": True}},
-
-    # Antenas
-    {"id": "p7",  "categoria_id": "c3", "nombre": "Antena Ubiquiti NanoStation Loco M5",
-     "marca": "Ubiquiti", "modelo": "NS-LOCO-M5", "referencia": "LOCO5",
-     "requiere_serial": True,  "descripcion": "Antena sectorial 5 GHz 16 dBi",
-     "metadata_json": {"frecuencia": "5GHz", "ganancia_dbi": 16, "tipo": "sectorial"}},
-    {"id": "p8",  "categoria_id": "c3", "nombre": "Antena MikroTik SXT Lite5",
-     "marca": "MikroTik", "modelo": "RBSXTLITE5HPnD", "referencia": None,
-     "requiere_serial": True,  "descripcion": "Antena integrada 5 GHz 16 dBi",
-     "metadata_json": {"frecuencia": "5GHz", "ganancia_dbi": 16, "tipo": "integrada"}},
-
-    # Cámaras
-    {"id": "p9",  "categoria_id": "c4", "nombre": "Cámara Dahua IPC-HFW1230S",
-     "marca": "Dahua", "modelo": "IPC-HFW1230S", "referencia": None,
-     "requiere_serial": True,  "descripcion": "Cámara IP Full HD 2MP exterior",
-     "metadata_json": {"resolucion": "1080p", "tipo": "exterior", "ir": True}},
-    {"id": "p10", "categoria_id": "c4", "nombre": "Cámara Hikvision DS-2CE16D0T-IR",
-     "marca": "Hikvision", "modelo": "DS-2CE16D0T-IR", "referencia": None,
-     "requiere_serial": True,  "descripcion": "Cámara analógica 2MP visión nocturna",
-     "metadata_json": {"resolucion": "1080p", "tipo": "exterior", "ir": True}},
-
-    # Switches
-    {"id": "p11", "categoria_id": "c5", "nombre": "Switch TP-Link TL-SF1008D",
-     "marca": "TP-Link", "modelo": "TL-SF1008D", "referencia": "TL-SF1008D V10",
-     "requiere_serial": False, "descripcion": "Switch 8 puertos 10/100 no administrable",
-     "metadata_json": {"puertos": 8, "administrable": False, "velocidad": "100Mbps"}},
-    {"id": "p12", "categoria_id": "c5", "nombre": "Switch D-Link DES-1008A",
-     "marca": "D-Link", "modelo": "DES-1008A", "referencia": None,
-     "requiere_serial": False, "descripcion": "Switch 8 puertos 10/100 no administrable",
-     "metadata_json": {"puertos": 8, "administrable": False, "velocidad": "100Mbps"}},
-    {"id": "p13", "categoria_id": "c5", "nombre": "Switch Cisco WS-C2960-24TC-L",
-     "marca": "Cisco", "modelo": "WS-C2960-24TC-L", "referencia": "C2960-24TC",
-     "requiere_serial": True,  "descripcion": "Switch administrable 24 puertos 10/100 + 2 SFP",
-     "metadata_json": {"puertos": 24, "administrable": True, "velocidad": "100Mbps", "sfp": 2}},
-
-    # Fuentes
-    {"id": "p14", "categoria_id": "c6", "nombre": "Fuente 12V 1A",
-     "marca": "Genérica", "modelo": "KY-1201000", "referencia": None,
-     "requiere_serial": False, "descripcion": "Fuente de poder 12V DC 1A",
-     "metadata_json": {"voltaje": "12V", "corriente": "1A", "tipo": "DC"}},
-    {"id": "p15", "categoria_id": "c6", "nombre": "Fuente 48V PoE",
-     "marca": "Genérica", "modelo": "POE-48V", "referencia": None,
-     "requiere_serial": False, "descripcion": "Fuente Power over Ethernet 48V 0.5A",
-     "metadata_json": {"voltaje": "48V", "corriente": "0.5A", "tipo": "PoE"}},
-
-    # Cables
-    {"id": "p16", "categoria_id": "c7", "nombre": "Cable UTP Cat 5e (metro)",
-     "marca": "Genérica", "modelo": "UTP-CAT5E", "referencia": None,
-     "requiere_serial": False, "descripcion": "Cable de red UTP categoría 5e — por metro",
-     "metadata_json": {"tipo": "UTP", "categoria": "5e", "unidad": "metro"}},
-    {"id": "p17", "categoria_id": "c7", "nombre": "Cable UTP Cat 6 (metro)",
-     "marca": "Genérica", "modelo": "UTP-CAT6", "referencia": None,
-     "requiere_serial": False, "descripcion": "Cable de red UTP categoría 6 — por metro",
-     "metadata_json": {"tipo": "UTP", "categoria": "6", "unidad": "metro"}},
-
-    # Fibra
-    {"id": "p18", "categoria_id": "c8", "nombre": "Pigtail SC/APC",
-     "marca": "Genérica", "modelo": "SC-APC-1M", "referencia": None,
-     "requiere_serial": False, "descripcion": "Pigtail fibra óptica SC/APC 1 metro",
-     "metadata_json": {"conector": "SC/APC", "longitud": "1m", "tipo": "pigtail"}},
-    {"id": "p19", "categoria_id": "c8", "nombre": "Patch Cord LC/LC 3m",
-     "marca": "Genérica", "modelo": "LC-LC-3M", "referencia": None,
-     "requiere_serial": False, "descripcion": "Patch cord fibra óptica LC/LC duplex 3 metros",
-     "metadata_json": {"conector": "LC/LC", "longitud": "3m", "tipo": "patch_cord"}},
+    {"id": "p1",  "categoria_id": "c1", "nombre": "ONT Huawei",        "marca": "Huawei",     "modelo": "HG8010H",        "referencia": "ONT-HW-01",    "requiere_serial": True,  "descripcion": "ONT básico 1 puerto GE para FTTH"},
+    {"id": "p2",  "categoria_id": "c1", "nombre": "ONT Nokia",         "marca": "Nokia",      "modelo": "G-010G-R",       "referencia": "ONT-NK-01",    "requiere_serial": True,  "descripcion": "ONT con WiFi integrado para FTTH"},
+    {"id": "p3",  "categoria_id": "c2", "nombre": "Router TP-Link",    "marca": "TP-Link",    "modelo": "Archer C80",     "referencia": "RTR-TP-01",    "requiere_serial": True,  "descripcion": "Router WiFi AC1900 doble banda"},
+    {"id": "p4",  "categoria_id": "c2", "nombre": "Router MikroTik",   "marca": "MikroTik",   "modelo": "RB951Ui-2HnD",   "referencia": "RTR-MK-01",    "requiere_serial": True,  "descripcion": "Router inalámbrico 2.4 GHz 5 puertos"},
+    {"id": "p5",  "categoria_id": "c3", "nombre": "Antena Ubiquiti",   "marca": "Ubiquiti",   "modelo": "LiteBeam 5AC",   "referencia": "ANT-UB-01",    "requiere_serial": True,  "descripcion": "Antena sectorial 5 GHz para enlace PtP"},
+    {"id": "p6",  "categoria_id": "c3", "nombre": "Antena MikroTik",   "marca": "MikroTik",   "modelo": "SXTsq 5AC",      "referencia": "ANT-MK-01",    "requiere_serial": True,  "descripcion": "Antena integrada 5 GHz para CPE"},
+    {"id": "p7",  "categoria_id": "c4", "nombre": "Cámara Hikvision",  "marca": "Hikvision",  "modelo": "DS-2CD1023G0-I",  "referencia": "CAM-HK-01",    "requiere_serial": True,  "descripcion": "Cámara IP fija 2 MP EXIR"},
+    {"id": "p8",  "categoria_id": "c4", "nombre": "Cámara Dahua",      "marca": "Dahua",      "modelo": "IPC-HFW1230S",    "referencia": "CAM-DH-01",    "requiere_serial": True,  "descripcion": "Cámara IP bala 2 MP"},
+    {"id": "p9",  "categoria_id": "c5", "nombre": "Switch Cisco",      "marca": "Cisco",      "modelo": "SG250-10",        "referencia": "SW-CS-01",     "requiere_serial": True,  "descripcion": "Switch administrable 10 puertos Gigabit"},
+    {"id": "p10", "categoria_id": "c5", "nombre": "Switch TP-Link",    "marca": "TP-Link",    "modelo": "TL-SG108E",       "referencia": "SW-TP-01",     "requiere_serial": False, "descripcion": "Switch no administrable 8 puertos Gigabit"},
+    {"id": "p11", "categoria_id": "c6", "nombre": "Fuente 12V 2A",     "marca": "Genérica",   "modelo": "FY-1202000",      "referencia": "FNT-GN-01",    "requiere_serial": False, "descripcion": "Fuente de poder 12V 2A para ONT/router"},
+    {"id": "p12", "categoria_id": "c6", "nombre": "Fuente POE 24V",    "marca": "TP-Link",    "modelo": "TL-POE150S",      "referencia": "FNT-TP-01",    "requiere_serial": True,  "descripcion": "Inyector PoE 24V 1A para antenas"},
+    {"id": "p13", "categoria_id": "c7", "nombre": "Cable UTP Cat5e",   "marca": "Genérico",   "modelo": "UTP-CAT5E",       "referencia": "CBL-GN-01",    "requiere_serial": False, "descripcion": "Cable de red UTP Cat5e metro"},
+    {"id": "p14", "categoria_id": "c7", "nombre": "Cable UTP Cat6",    "marca": "Genérico",   "modelo": "UTP-CAT6",        "referencia": "CBL-GN-02",    "requiere_serial": False, "descripcion": "Cable de red UTP Cat6 metro"},
+    {"id": "p15", "categoria_id": "c8", "nombre": "Pigtail SC/APC",    "marca": "Genérico",   "modelo": "SM-1M-SC-APC",    "referencia": "FBR-GN-01",    "requiere_serial": False, "descripcion": "Pigtail fibra óptica monomodo SC/APC 1m"},
+    {"id": "p16", "categoria_id": "c8", "nombre": "Patch Cord SC/APC", "marca": "Genérico",   "modelo": "SM-2M-SC-APC",    "referencia": "FBR-GN-02",    "requiere_serial": False, "descripcion": "Patch cord fibra óptica SC/APC 2m"},
+    {"id": "p17", "categoria_id": "c2", "nombre": "Router Xiaomi",     "marca": "Xiaomi",     "modelo": "AX3000T",         "referencia": "RTR-XM-01",    "requiere_serial": True,  "descripcion": "Router WiFi 6 AX3000"},
+    {"id": "p18", "categoria_id": "c3", "nombre": "Antena Huawei",     "marca": "Huawei",     "modelo": "LTE-CPE-B311",    "referencia": "ANT-HW-01",    "requiere_serial": True,  "descripcion": "CPE LTE para cobertura inalámbrica"},
+    {"id": "p19", "categoria_id": "c4", "nombre": "Cámara TP-Link",    "marca": "TP-Link",    "modelo": "Tapo C200",        "referencia": "CAM-TP-01",    "requiere_serial": True,  "descripcion": "Cámara IP WiFi domo 2 MP"},
 ]
 
-# ---------------------------------------------------------------------------
-# Datos por sede
-# ---------------------------------------------------------------------------
 SEDES = [
     {"id": "s1", "nombre": "Ramiriquí", "municipio": "Ramiriquí", "direccion": "Carrera 5 # 4-20, Centro"},
     {"id": "s2", "nombre": "Tunja",     "municipio": "Tunja",     "direccion": "Calle 19 # 9-35, Centro"},
 ]
 
-USUARIOS_SEDE1 = [
-    {"id": "u1", "sede_id": "s1", "rol_id": "r1", "nombre": "Carlos Pérez",
-     "correo": "carlos@isp.com", "password_hash": PASSWORD_HASH, "activo": True},
-    {"id": "u2", "sede_id": "s1", "rol_id": "r2", "nombre": "María López",
-     "correo": "maria@isp.com", "password_hash": PASSWORD_HASH, "activo": True},
+USUARIOS = [
+    {"id": "u1", "sede_id": "s1", "rol_id": "r1", "nombre": "Carlos Martínez", "correo": "carlos@isp.com",     "password_hash": PASSWORD_HASH, "activo": True},
+    {"id": "u2", "sede_id": "s1", "rol_id": "r2", "nombre": "María López",     "correo": "maria@isp.com",      "password_hash": PASSWORD_HASH, "activo": True},
+    {"id": "u3", "sede_id": "s2", "rol_id": "r2", "nombre": "Pedro Gómez",     "correo": "pedro@isp.com",      "password_hash": PASSWORD_HASH, "activo": True},
+    {"id": "u4", "sede_id": "s2", "rol_id": "r1", "nombre": "Ana Rodríguez",   "correo": "ana@isp.com",        "password_hash": PASSWORD_HASH, "activo": True},
 ]
 
-USUARIOS_SEDE2 = [
-    {"id": "u3", "sede_id": "s2", "rol_id": "r1", "nombre": "Pedro Martínez",
-     "correo": "pedro@isp.com", "password_hash": PASSWORD_HASH, "activo": True},
-    {"id": "u4", "sede_id": "s2", "rol_id": "r2", "nombre": "Ana González",
-     "correo": "ana@isp.com", "password_hash": PASSWORD_HASH, "activo": True},
+STOCK = [
+    # Ramiriquí (s1)
+    {"sede_id": "s1", "producto_id": "p1",  "cantidad": 25},
+    {"sede_id": "s1", "producto_id": "p2",  "cantidad": 12},
+    {"sede_id": "s1", "producto_id": "p3",  "cantidad": 8},
+    {"sede_id": "s1", "producto_id": "p4",  "cantidad": 3},
+    {"sede_id": "s1", "producto_id": "p5",  "cantidad": 10},
+    {"sede_id": "s1", "producto_id": "p6",  "cantidad": 15},
+    {"sede_id": "s1", "producto_id": "p7",  "cantidad": 4},
+    {"sede_id": "s1", "producto_id": "p8",  "cantidad": 6},
+    {"sede_id": "s1", "producto_id": "p9",  "cantidad": 2},
+    {"sede_id": "s1", "producto_id": "p10", "cantidad": 20},
+    {"sede_id": "s1", "producto_id": "p11", "cantidad": 50},
+    {"sede_id": "s1", "producto_id": "p12", "cantidad": 18},
+    {"sede_id": "s1", "producto_id": "p13", "cantidad": 200},
+    {"sede_id": "s1", "producto_id": "p14", "cantidad": 100},
+    {"sede_id": "s1", "producto_id": "p15", "cantidad": 60},
+    {"sede_id": "s1", "producto_id": "p16", "cantidad": 40},
+    {"sede_id": "s1", "producto_id": "p17", "cantidad": 5},
+    {"sede_id": "s1", "producto_id": "p18", "cantidad": 7},
+    {"sede_id": "s1", "producto_id": "p19", "cantidad": 3},
+    # Tunja (s2)
+    {"sede_id": "s2", "producto_id": "p1",  "cantidad": 30},
+    {"sede_id": "s2", "producto_id": "p2",  "cantidad": 10},
+    {"sede_id": "s2", "producto_id": "p3",  "cantidad": 15},
+    {"sede_id": "s2", "producto_id": "p4",  "cantidad": 5},
+    {"sede_id": "s2", "producto_id": "p5",  "cantidad": 8},
+    {"sede_id": "s2", "producto_id": "p6",  "cantidad": 20},
+    {"sede_id": "s2", "producto_id": "p7",  "cantidad": 2},
+    {"sede_id": "s2", "producto_id": "p8",  "cantidad": 9},
+    {"sede_id": "s2", "producto_id": "p9",  "cantidad": 1},
+    {"sede_id": "s2", "producto_id": "p10", "cantidad": 15},
+    {"sede_id": "s2", "producto_id": "p11", "cantidad": 45},
+    {"sede_id": "s2", "producto_id": "p12", "cantidad": 12},
+    {"sede_id": "s2", "producto_id": "p13", "cantidad": 180},
+    {"sede_id": "s2", "producto_id": "p14", "cantidad": 80},
+    {"sede_id": "s2", "producto_id": "p15", "cantidad": 55},
+    {"sede_id": "s2", "producto_id": "p16", "cantidad": 35},
+    {"sede_id": "s2", "producto_id": "p17", "cantidad": 8},
+    {"sede_id": "s2", "producto_id": "p18", "cantidad": 4},
+    {"sede_id": "s2", "producto_id": "p19", "cantidad": 1},
 ]
 
-STOCK_SEDE1 = [
-    # ONT
-    {"sede_id": "s1", "producto_id": "p1",  "cantidad": 12},
-    {"sede_id": "s1", "producto_id": "p2",  "cantidad": 8},
-    {"sede_id": "s1", "producto_id": "p3",  "cantidad": 15},
-    # Routers
-    {"sede_id": "s1", "producto_id": "p4",  "cantidad": 10},
-    {"sede_id": "s1", "producto_id": "p5",  "cantidad": 20},
-    {"sede_id": "s1", "producto_id": "p6",  "cantidad": 5},
-    # Antenas
-    {"sede_id": "s1", "producto_id": "p7",  "cantidad": 6},
-    {"sede_id": "s1", "producto_id": "p8",  "cantidad": 4},
-    # Cámaras
-    {"sede_id": "s1", "producto_id": "p9",  "cantidad": 3},
-    {"sede_id": "s1", "producto_id": "p10", "cantidad": 2},
-    # Switches
-    {"sede_id": "s1", "producto_id": "p11", "cantidad": 7},
-    {"sede_id": "s1", "producto_id": "p12", "cantidad": 5},
-    {"sede_id": "s1", "producto_id": "p13", "cantidad": 1},
-    # Fuentes
-    {"sede_id": "s1", "producto_id": "p14", "cantidad": 25},
-    {"sede_id": "s1", "producto_id": "p15", "cantidad": 10},
-    # Cable (metros)
-    {"sede_id": "s1", "producto_id": "p16", "cantidad": 200},
-    {"sede_id": "s1", "producto_id": "p17", "cantidad": 100},
-    # Fibra
-    {"sede_id": "s1", "producto_id": "p18", "cantidad": 30},
-    {"sede_id": "s1", "producto_id": "p19", "cantidad": 15},
-]
 
-STOCK_SEDE2 = [
-    {"sede_id": "s2", "producto_id": "p1",  "cantidad": 8},
-    {"sede_id": "s2", "producto_id": "p2",  "cantidad": 5},
-    {"sede_id": "s2", "producto_id": "p3",  "cantidad": 10},
-    {"sede_id": "s2", "producto_id": "p4",  "cantidad": 6},
-    {"sede_id": "s2", "producto_id": "p5",  "cantidad": 12},
-    {"sede_id": "s2", "producto_id": "p6",  "cantidad": 3},
-    {"sede_id": "s2", "producto_id": "p7",  "cantidad": 4},
-    {"sede_id": "s2", "producto_id": "p8",  "cantidad": 2},
-    {"sede_id": "s2", "producto_id": "p9",  "cantidad": 2},
-    {"sede_id": "s2", "producto_id": "p10", "cantidad": 1},
-    {"sede_id": "s2", "producto_id": "p11", "cantidad": 4},
-    {"sede_id": "s2", "producto_id": "p12", "cantidad": 3},
-    {"sede_id": "s2", "producto_id": "p13", "cantidad": 1},
-    {"sede_id": "s2", "producto_id": "p14", "cantidad": 15},
-    {"sede_id": "s2", "producto_id": "p15", "cantidad": 6},
-    {"sede_id": "s2", "producto_id": "p16", "cantidad": 150},
-    {"sede_id": "s2", "producto_id": "p17", "cantidad": 50},
-    {"sede_id": "s2", "producto_id": "p18", "cantidad": 20},
-    {"sede_id": "s2", "producto_id": "p19", "cantidad": 10},
-]
+def seed_database(session):
+    """Puebla la base de datos con datos iniciales si está vacía."""
+    if session.query(Sede).count() > 0:
+        print("  Datos ya existen, saltando seed.")
+        return
 
-# ---------------------------------------------------------------------------
-# Helper
-# ---------------------------------------------------------------------------
-HACE_7_DIAS = datetime.now() - timedelta(days=7)
-HACE_3_DIAS = datetime.now() - timedelta(days=3)
+    print("  Insertando roles...")
+    for r in ROLES:
+        session.add(Rol(**r))
 
+    print("  Insertando sedes...")
+    for s in SEDES:
+        session.add(Sede(**s))
 
-FORCE = "--force" in sys.argv
+    print("  Insertando categorías...")
+    for c in CATEGORIAS:
+        session.add(Categoria(**c))
 
+    print("  Insertando productos...")
+    for p in PRODUCTOS:
+        session.add(Producto(**p))
 
-def seed_database(db_url, sede_id, usuarios, stock):
-    """Conecta a una base de datos, crea tablas y siembra datos."""
-    engine = create_engine(db_url, pool_pre_ping=True)
+    session.flush()
 
-    if FORCE:
-        Base.metadata.drop_all(bind=engine)
-        Base.metadata.create_all(bind=engine)
-    else:
-        Base.metadata.create_all(bind=engine)
+    print("  Insertando usuarios...")
+    for u in USUARIOS:
+        session.add(Usuario(**u))
 
-    Session = sessionmaker(bind=engine)
-    session = Session()
+    session.flush()
 
-    try:
-        # Saltar si ya hay datos (a menos que se use --force)
-        if not FORCE and session.query(Rol).count() > 0:
-            print(f"  ⏭ Ya hay datos en {sede_id}, saltando seed (usa --force para resetear)")
-            return
+    print("  Insertando stock inicial...")
+    for s in STOCK:
+        session.add(StockActual(
+            id=f"st_{s['sede_id']}_{s['producto_id']}",
+            sede_id=s["sede_id"],
+            producto_id=s["producto_id"],
+            cantidad=s["cantidad"],
+        ))
 
-        # 1. Roles  (comunes)
-        for data in ROLES:
-            session.add(Rol(**data))
+    session.flush()
 
-        # 2. Sedes  (ambas sedes en cada BD)
-        for data in SEDES:
-            session.add(Sede(**data))
-        session.flush()
-
-        # 3. Categorías  (comunes)
-        for data in CATEGORIAS:
-            session.add(Categoria(**data))
-        session.flush()
-
-        # 4. Productos  (comunes)
-        for data in PRODUCTOS:
-            session.add(Producto(**data))
-        session.flush()
-
-        # 5. Usuarios  (propios de cada sede)
-        for data in usuarios:
-            session.add(Usuario(**data))
-        session.flush()
-
-        # 6. Stock inicial
-        for data in stock:
-            session.add(StockActual(**data))
-        session.flush()
-
-        # 7. Movimiento de entrada inicial (stock inicial como movimiento)
-        mov_id = str(uuid.uuid4())
+    print("  Creando movimientos de entrada iniciales...")
+    fecha_base = datetime.now() - timedelta(days=7)
+    for i, s in enumerate(STOCK):
         mov = MovimientoInventario(
-            id=mov_id,
-            usuario_id=usuarios[0]["id"],
-            sede_origen_id=sede_id,
-            sede_destino_id=None,
+            id=f"mov_ini_{i}",
+            usuario_id="u1" if s["sede_id"] == "s1" else "u4",
+            sede_origen_id=s["sede_id"],
             tipo_movimiento="entrada",
-            observacion="Carga inicial de inventario",
-            fecha=HACE_7_DIAS,
+            observacion=f"Inventario inicial {s['sede_id']}",
+            fecha=fecha_base + timedelta(hours=i),
         )
         session.add(mov)
         session.flush()
+        session.add(DetalleMovimiento(
+            id=f"det_ini_{i}",
+            movimiento_id=mov.id,
+            producto_id=s["producto_id"],
+            cantidad=s["cantidad"],
+        ))
 
-        for item in stock:
-            det = DetalleMovimiento(
-                movimiento_id=mov_id,
-                producto_id=item["producto_id"],
-                cantidad=item["cantidad"],
-                serial=None,
-                observacion=None,
-            )
-            session.add(det)
-
-        # 8. Movimiento de salida de prueba (instalación a cliente)
-        if len(stock) >= 3:
-            mov2_id = str(uuid.uuid4())
-            mov2 = MovimientoInventario(
-                id=mov2_id,
-                usuario_id=usuarios[0]["id"],
-                sede_origen_id=sede_id,
-                sede_destino_id=None,
-                tipo_movimiento="salida",
-                observacion="Instalación cliente - Sector Centro",
-                fecha=HACE_3_DIAS,
-            )
-            session.add(mov2)
-            session.flush()
-
-            salidas = [
-                {"producto_id": "p1", "cantidad": 1, "serial": f"SER-ONT-{sede_id}-001"},
-                {"producto_id": "p5", "cantidad": 1, "serial": f"SER-RTR-{sede_id}-001"},
-                {"producto_id": "p14", "cantidad": 1, "serial": None},
-            ]
-            for s in salidas:
-                det = DetalleMovimiento(
-                    movimiento_id=mov2_id,
-                    producto_id=s["producto_id"],
-                    cantidad=s["cantidad"],
-                    serial=s["serial"],
-                    observacion="Instalación completa",
-                )
-                session.add(det)
-
-            # Reflejar la salida en stock_actual
-            for s in salidas:
-                session.query(StockActual).filter(
-                    StockActual.sede_id == sede_id,
-                    StockActual.producto_id == s["producto_id"],
-                ).update({StockActual.cantidad: StockActual.cantidad - s["cantidad"]})
-
-        session.commit()
-        print(f"  ✓ Seed completado")
-
-    except Exception as e:
-        session.rollback()
-        print(f"  ✗ Error: {e}")
-        raise
-    finally:
-        session.close()
+    session.commit()
 
 
-# ---------------------------------------------------------------------------
-# Entry point
-# ---------------------------------------------------------------------------
 def run():
-    configs = [
-        ("s1", DATABASE_URLS["s1"], "s1", USUARIOS_SEDE1, STOCK_SEDE1),
-        ("s2", DATABASE_URLS["s2"], "s2", USUARIOS_SEDE2, STOCK_SEDE2),
-    ]
-    for name, url, sede_id, usuarios, stock in configs:
-        print(f"\nPoblando {name} ({url})...")
-        seed_database(url, sede_id, usuarios, stock)
+    engine = create_engine(DATABASE_URL)
 
-    print("\n✅ Seed completado en ambas bases.")
+    if "--force" in sys.argv:
+        print("  Modo --force: eliminando tablas...")
+        Base.metadata.drop_all(bind=engine)
+        Base.metadata.create_all(bind=engine)
+        print("  Tablas recreadas.")
+
+    Base.metadata.create_all(bind=engine)
+
+    session_factory = sessionmaker(bind=engine)
+    session = session_factory()
+
+    print(f"Poblando base de datos ({DATABASE_URL})...")
+    seed_database(session)
+    session.close()
+    print("Seed completado.")
 
 
 if __name__ == "__main__":
